@@ -2,11 +2,13 @@
 // Links :
 // https://www.codeproject.com/Articles/6154/Writing-Efficient-C-and-C-Code-Optimization
 // https://www-s.acm.illinois.edu/webmonkeys/book/c_guide/index.html
+// http://www.agner.org/optimize/optimizing_cpp.pdf
+// todo : http://en.cppreference.com/w/cpp/language/operators
 */
 #include <iostream>
 #include <string.h>
 
-#define MAX 3000
+#define MAX 100
 #define DEBUG 1
 
 #if DEBUG
@@ -44,23 +46,21 @@ void Currency::add(const char* value) {
   if(verify_content(value)) {
     uint64_t max = strlen(value);
     uint64_t i = 0;
-    short offset = 0;
-    short tmp = 0;
-    bool stop = false;
-    short a,b;
-    while (!stop) { // tant que stop est à false
+    uint8_t offset = 0;
+    uint8_t tmp = 0;
+    uint8_t a,b;
+    while (offset || i != max) { // tant qu'il reste un offset ou que l'on n'a pas atteind la fin de l'addition
       a = *(bigValue+MAX-i-1) - '0';
-      if (offset && i == max) { // si on à un offset mais qu'on a parcouru tout le chiffre à additionner 
-        b = 0;
+      if (offset && i == max) { // si on a un offset mais qu'on a parcouru tout le chiffre à additionner ...
         max++; // on augmente la taille pour continuer à parcourir le chiffre de base, car il reste l'offset à additionner
+        b = 0; // est à 0
       } else {
         b = *(value+max-i-1) - '0';
       }
       tmp = a + b + offset; // on aditionne les deux chiffres et l'offset
       *(bigValue+MAX-i-1) = (tmp % 10) + '0'; // avec une addition entre 2 chiffres si le chiffre est supérieur à 10 on ne regarde que reste
-      offset = tmp / 10; // calcul de l'offset, = 1 si >= 10 et =0 < 10
+      offset = tmp / 10; // calcul de l'offset, = 1 si >= 10 et = 0 si < 10
       i++;  // on augmente l'index
-      if (!offset && i == max) stop = true; // s'il n'y a pas d'offset et qu'on a parcouru tour le nombre à additionner alors on quitte
     }
   }
 }
@@ -69,11 +69,10 @@ void Currency::subtract(const char* value) {
   if(verify_content(value)) {
     uint64_t max = strlen(value);
     uint64_t i = 0;
-    short offset = 0;
-    short tmp = 0;
-    bool stop = false;
-    short a,b;
-    while (!stop) { // tant que stop est à false
+    uint8_t offset = 0;
+    int8_t tmp = 0; // doit être signé
+    uint8_t a,b;
+    while (offset || i != max) { // s'il n'y a pas d'offset et qu'on a parcouru tour le nombre à soustraire alors on quitte
       a = (bigValue[MAX-i-1] - '0'); // a = chiffre i (par la droite)
       if (offset && i == max) { // si on à un offset mais qu'on a parcouru tout le chiffre à soustraire 
         max++; // on augmente la taille pour continuer à parcourir le chiffre de base, car il reste l'offset à soustraire
@@ -90,17 +89,8 @@ void Currency::subtract(const char* value) {
       }
       bigValue[MAX-i-1] = tmp + '0'; // on modifie la valeur cet index
       i++; // on augmente l'index
-      if (!offset && i == max) stop = true; // s'il n'y a pas d'offset et qu'on a parcouru tour le nombre à soustraire alors on quitte
     }
   }
-}
-
-void Currency::show() {
-  printf("Current %.*s\n",MAX-index(),bigValue+index());
-}
-
-void Currency::reset() {
-  memset(bigValue,'0',MAX);
 }
 
 void Currency::multiply(const char* value) {
@@ -109,8 +99,8 @@ void Currency::multiply(const char* value) {
     uint64_t max_bigvalue = MAX - index(); // longueur du big value, pour savoir le nombre de case à multiplier
     char local_value[MAX];
     uint64_t i = 0,j = 0;
-    short offset = 0;
-    short tmp = 0;
+    uint8_t offset = 0;
+    uint8_t tmp = 0;
     bool stop = false;
     memcpy(local_value,bigValue,MAX); // on stocke la valeur de base (car on ne doit pas la perdre)
     memset(bigValue,'0',MAX);
@@ -133,6 +123,14 @@ void Currency::multiply(const char* value) {
       if (i == max) stop = true;
     }
   }
+}
+
+void Currency::show() {
+  printf("Current %.*s\n",MAX-index(),bigValue+index());
+}
+
+void Currency::reset() {
+  memset(bigValue,'0',MAX);
 }
 
 bool Currency::verify_content(const char* value) { // todo : désactivé, temporaire
@@ -159,14 +157,11 @@ int main() {
   clock_t begin = clock();
   #endif
   
-  current.add("15783");
-  //current.show();
-  current.add("1578350");
-  //current.show();
-  current.multiply("826217485465468765487689465484464418478643137837272170170397803737370802750687013203896040391457832");
-  //current.show();
-  current.multiply("128817357139658445876672372911457840427930534889613147569361835841806792598027793279410140067663307930271450192206529964313124014061997019387483141596934131627349459557995066721864788615898179056304891416812881735713965844587667237291145784042793053488961314756936183584180679259802779327941014006766330793027145019220652996431312401406199701938748314159693413162734945955799506672186478861589817905630489141681288173571396584458766723729114578404279305348896131475693618358418067925980277932794101400676633079302714501922065299643131240140619970193874831415969341316273494595579950667218647886158981790563048914168128817357139658445876672372911457840427930534889613147569361835841806792598027793279410140067663307930271450192206529964313124014061997019387483141596934131627349459557995066721864788615898179056304891416812881735713965844587667237291145784042793053488961314756936183584180679259802779327941014006766330793027145019220652996431312401406199701938748314159693413162734945955799506672186");
-  current.multiply("128817357139658445876672372911457840427930534889613147569361835841806792598027793279410140067663307930271450192206529964313124014061997019387483141596934131627349459557995066721864788615898179056304891416812881735713965844587667237291145784042793053488961314756936183584180679259802779327941014006766330793027145019220652996431312401406199701938748314159693413162734945955799506672186478861589817905630489141681288173571396584458766723729114578404279305348896131475693618358418067925980277932794101400676633079302714501922065299643131240140619970193874831415969341316273494595579950667218647886158981790563048914168128817357139658445876672372911457840427930534889613147569361835841806792598027793279410140067663307930271450192206529964313124014061997019387483141596934131627349459557995066721864788615898179056304891416812881735713965844587667237291145784042793053488961314756936183584180679259802779327941014006766330793027145019220652996431312401406199701938748314159693413162734945955799506672186");
+  current.add("1");
+  current.add("9999999");
+  current.add("9999998");
+  current.subtract("9999999");
+  //current.multiply("826217485465468765487689465484464418478643137837272170170397803737370802750687013203896040391457832");
   current.show();
   
   #if DEBUG
