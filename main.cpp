@@ -1,10 +1,13 @@
+/* SCHWARTZ Guillaume - 29/05/2018
+// Links :
+// https://www.codeproject.com/Articles/6154/Writing-Efficient-C-and-C-Code-Optimization
+// https://www-s.acm.illinois.edu/webmonkeys/book/c_guide/index.html
+*/
 #include <iostream>
 #include <string.h>
 
-#define MAX 1000
+#define MAX 3000
 #define DEBUG 1
-
-typedef unsigned long long bigInt;
 
 #if DEBUG
 #include<time.h>
@@ -29,7 +32,7 @@ class Currency {
   void show();
   
   private :
-  bigInt index(); /* retourne l'index du premier chiffre != 0 en partant de la gauche */
+  uint64_t index(); /* retourne l'index du premier chiffre != 0 en partant de la gauche */
   bool verify_content(const char* ); /* vérifie que la chaine d'entrée est composée de chiffres */
 };
 
@@ -39,8 +42,8 @@ Currency::Currency() {
 
 void Currency::add(const char* value) {
   if(verify_content(value)) {
-    bigInt max = strlen(value);
-    bigInt i = 0;
+    uint64_t max = strlen(value);
+    uint64_t i = 0;
     short offset = 0;
     short tmp = 0;
     bool stop = false;
@@ -56,7 +59,7 @@ void Currency::add(const char* value) {
       tmp = a + b + offset; // on aditionne les deux chiffres et l'offset
       *(bigValue+MAX-i-1) = (tmp % 10) + '0'; // avec une addition entre 2 chiffres si le chiffre est supérieur à 10 on ne regarde que reste
       offset = tmp / 10; // calcul de l'offset, = 1 si >= 10 et =0 < 10
-      i++; // on augmente l'index
+      i++;  // on augmente l'index
       if (!offset && i == max) stop = true; // s'il n'y a pas d'offset et qu'on a parcouru tour le nombre à additionner alors on quitte
     }
   }
@@ -64,8 +67,8 @@ void Currency::add(const char* value) {
 
 void Currency::subtract(const char* value) {
   if(verify_content(value)) {
-    bigInt max = strlen(value);
-    bigInt i = 0;
+    uint64_t max = strlen(value);
+    uint64_t i = 0;
     short offset = 0;
     short tmp = 0;
     bool stop = false;
@@ -102,10 +105,10 @@ void Currency::reset() {
 
 void Currency::multiply(const char* value) {
   if(verify_content(value)) {
-    bigInt max = strlen(value);
-    bigInt max_bigvalue = MAX - index(); // longueur du big value, pour savoir le nombre de case à multiplier
+    uint64_t max = strlen(value);
+    uint64_t max_bigvalue = MAX - index(); // longueur du big value, pour savoir le nombre de case à multiplier
     char local_value[MAX];
-    bigInt i = 0,j = 0;
+    uint64_t i = 0,j = 0;
     short offset = 0;
     short tmp = 0;
     bool stop = false;
@@ -133,16 +136,16 @@ void Currency::multiply(const char* value) {
 }
 
 bool Currency::verify_content(const char* value) { // todo : désactivé, temporaire
-  /*bigInt max = strlen(value);
-  bigInt i;
+  /*uint64_t max = strlen(value);
+  uint64_t i;
   for(i = 0; i < max; i++) {
     if (value[i] < '0' || value[i] > '9') return false;
   }*/
   return true;
 }
 
-bigInt Currency::index(){
-  bigInt i = 0;
+uint64_t Currency::index(){
+  uint64_t i = 0;
   for(i = 0; i < MAX; i++) {
     if (bigValue[i] != '0') return i;
   }
@@ -157,10 +160,13 @@ int main() {
   #endif
   
   current.add("15783");
-  current.show();
+  //current.show();
   current.add("1578350");
-  current.show();
-  current.multiply("8232");
+  //current.show();
+  current.multiply("826217485465468765487689465484464418478643137837272170170397803737370802750687013203896040391457832");
+  //current.show();
+  current.multiply("128817357139658445876672372911457840427930534889613147569361835841806792598027793279410140067663307930271450192206529964313124014061997019387483141596934131627349459557995066721864788615898179056304891416812881735713965844587667237291145784042793053488961314756936183584180679259802779327941014006766330793027145019220652996431312401406199701938748314159693413162734945955799506672186478861589817905630489141681288173571396584458766723729114578404279305348896131475693618358418067925980277932794101400676633079302714501922065299643131240140619970193874831415969341316273494595579950667218647886158981790563048914168128817357139658445876672372911457840427930534889613147569361835841806792598027793279410140067663307930271450192206529964313124014061997019387483141596934131627349459557995066721864788615898179056304891416812881735713965844587667237291145784042793053488961314756936183584180679259802779327941014006766330793027145019220652996431312401406199701938748314159693413162734945955799506672186");
+  current.multiply("128817357139658445876672372911457840427930534889613147569361835841806792598027793279410140067663307930271450192206529964313124014061997019387483141596934131627349459557995066721864788615898179056304891416812881735713965844587667237291145784042793053488961314756936183584180679259802779327941014006766330793027145019220652996431312401406199701938748314159693413162734945955799506672186478861589817905630489141681288173571396584458766723729114578404279305348896131475693618358418067925980277932794101400676633079302714501922065299643131240140619970193874831415969341316273494595579950667218647886158981790563048914168128817357139658445876672372911457840427930534889613147569361835841806792598027793279410140067663307930271450192206529964313124014061997019387483141596934131627349459557995066721864788615898179056304891416812881735713965844587667237291145784042793053488961314756936183584180679259802779327941014006766330793027145019220652996431312401406199701938748314159693413162734945955799506672186");
   current.show();
   
   #if DEBUG
