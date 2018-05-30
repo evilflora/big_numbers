@@ -8,7 +8,7 @@
 #include <iostream>
 #include <string.h>
 
-#define MAX 100
+#define MAX 8000000
 #define DEBUG 1
 
 #if DEBUG
@@ -24,12 +24,14 @@ using namespace std;
 class Currency {
   protected :
   char* bigValue = new char[MAX];
+  uint64_t _index;
   
   public :
   Currency();
   void add(const char*);
   void subtract(const char*);
   void multiply(const char*);
+  void divide(const char*);
   void reset();
   void show();
   
@@ -62,6 +64,7 @@ void Currency::add(const char* value) {
       offset = tmp / 10; // calcul de l'offset, = 1 si >= 10 et = 0 si < 10
       i++;  // on augmente l'index
     }
+    _index = ( i > _index ? i : _index);
   }
 }
 
@@ -89,6 +92,12 @@ void Currency::subtract(const char* value) {
       }
       bigValue[MAX-i-1] = tmp + '0'; // on modifie la valeur cet index
       i++; // on augmente l'index
+    }
+    for(i = MAX-_index; i < MAX; i++) {
+     if (bigValue[i] != '0'){
+         _index = MAX - i;
+         break;
+     }
     }
   }
 }
@@ -122,8 +131,23 @@ void Currency::multiply(const char* value) {
       i++; // on augmente l'index
       if (i == max) stop = true;
     }
+    _index = ( i > _index ? i : _index); // -1 car il y a le '\0'
   }
 }
+
+void Currency::divide(const char* value) {
+  if(verify_content(value)) {
+    uint64_t max = strlen(value);
+    uint64_t max_bigvalue = MAX - index(); // longueur du big value, pour savoir le nombre de case à multiplier
+    uint64_t i = 0,j = 0;
+    uint8_t offset = 0;
+    uint8_t tmp = 0;
+    bool stop = false;
+    while (!stop) { // tant que stop est à false et défini le nombre d'additions à réaliser
+
+    }
+  }
+} // todo
 
 void Currency::show() {
   printf("Current %.*s\n",MAX-index(),bigValue+index());
@@ -131,6 +155,7 @@ void Currency::show() {
 
 void Currency::reset() {
   memset(bigValue,'0',MAX);
+  _index = 0;
 }
 
 bool Currency::verify_content(const char* value) { // todo : désactivé, temporaire
@@ -143,11 +168,12 @@ bool Currency::verify_content(const char* value) { // todo : désactivé, tempor
 }
 
 uint64_t Currency::index(){
-  uint64_t i = 0;
+  return MAX-_index;
+  /*uint64_t i = 0;
   for(i = 0; i < MAX; i++) {
     if (bigValue[i] != '0') return i;
   }
-  return MAX-1;
+  return MAX-1;*/
 }
 
 int main() {
@@ -159,9 +185,12 @@ int main() {
   
   current.add("1");
   current.add("9999999");
-  current.add("9999998");
-  current.subtract("9999999");
-  //current.multiply("826217485465468765487689465484464418478643137837272170170397803737370802750687013203896040391457832");
+  current.add("9999999");
+  current.add("9999999");
+  current.add("199999999999");
+  current.subtract("199999999999");
+  current.multiply("826217485465");
+  current.multiply("826217485465");
   current.show();
   
   #if DEBUG
