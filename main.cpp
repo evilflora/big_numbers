@@ -3,6 +3,7 @@
 // Optimization : https://www.codeproject.com/Articles/6154/Writing-Efficient-C-and-C-Code-Optimization
 // Optimization : https://www-s.acm.illinois.edu/webmonkeys/book/c_guide/index.html
 // Optimization : http://www.agner.org/optimize/optimizing_cpp.pdf
+// Optimization : https://bousk.developpez.com/cours/multi-thread-mutex/
 // Operators    : https://www.ibm.com/support/knowledgecenter/en/SSLTBW_2.3.0/com.ibm.zos.v2r3.cbclx01/cplr318.htm
 */
 #include <iostream>
@@ -16,10 +17,6 @@
 #endif
 
 using namespace std;
-
-/* 
- * todo : https://bousk.developpez.com/cours/multi-thread-mutex/
- */
 
 class Currency {
   protected :
@@ -39,9 +36,10 @@ class Currency {
   void show();
   char* get();
   void set(const char*);
+  void set(Currency);
   uint64_t index(); /* retourne l'index du premier chiffre != 0 en partant de la gauche */
   // operators
-  friend Currency& operator++(Currency&, const int);
+  Currency  operator++(int);
   Currency  operator+ (Currency&);
   Currency  operator* (Currency&);
   Currency  operator- (Currency&);
@@ -92,12 +90,12 @@ void Currency::subtract(const char* value) {
   int8_t tmp = 0; // doit être signé
   uint8_t a,b;
   while (offset || i != max) { // s'il n'y a pas d'offset et qu'on a parcouru tour le nombre à soustraire alors on quitte
-    a = (bigValue[MAX-i-1] - '0'); // a = chiffre i (par la droite)
+    a = (*(bigValue+MAX-i-1) - '0'); // a = chiffre i (par la droite)
     if (offset && i == max) { // si on à un offset mais qu'on a parcouru tout le chiffre à soustraire 
       max++; // on augmente la taille pour continuer à parcourir le chiffre de base, car il reste l'offset à soustraire
       b = 0; // on met b à 0 pour simplifier les calculs suivants
     } else {
-      b = (value[max-i-1] - '0'); // s'il n'y a pas d'offet et qu'on n'a pas parcouru tout le chiffre à soustraire on continue normalement
+      b = (*(value+max-i-1) - '0'); // s'il n'y a pas d'offet et qu'on n'a pas parcouru tout le chiffre à soustraire on continue normalement
     }
     tmp = a - (b + offset); // soustraction à l'index actuel
     if (tmp < 0) { // si on obtient un chiffre négatif
@@ -106,11 +104,11 @@ void Currency::subtract(const char* value) {
     } else {
       offset = 0; // sinon 8 - 5 => 3 donc pas d'offset
     }
-    bigValue[MAX-i-1] = tmp + '0'; // on modifie la valeur cet index
+    *(bigValue+MAX-i-1) = tmp + '0'; // on modifie la valeur cet index
     i++; // on augmente l'index
   }
   for(i = MAX-_index; i < MAX; i++) { //fix du décalage de l'index avec la soustration, temporaire // todo
-    if (bigValue[i] != '0'){
+    if (*(bigValue+i) != '0'){
         _index = MAX - i;
         return;
     }
@@ -213,7 +211,28 @@ bool Currency::operator<=(Currency& v1) {
    } else if (this->_index < v1._index) { // si la longueur du chiffre de gauche est supérieure à a longueur du chiffre de droite, droite = le plus petit
     return true;
   } else { // longueur indentique on doit donc trouver qui est le plus grand entre les deux
-    short equal = strncmp(this->bigValue+this->index(),v1.bigValue+v1.index(),MAX);
+    //short equal = strncmp(this->bigValue+this->index(),v1.bigValue+v1.index(),MAX);
+    if (strncmp(this->bigValue+this->index(),v1.bigValue+v1.index(),MAX) > 0) {
+        return false;
+    } else {
+        return true;
+    }
+    //else if (equal < 0) {
+    //    return true;
+    //} 
+  }
+  return false;
+} // good
+
+bool Currency::operator>=(Currency& v1) {
+  // return true si gauche >= droite
+  // return false si gauche < droite
+  if(this->index() > v1.index()) { // si la longueur du chiffre de gauche est supérieure à a longueur du chiffre de droite, droite = le plus petit
+    return false;
+   } else if (v1.index() < this->index()) { // si la longueur du chiffre de gauche est inférieur à a longueur du chiffre de droite, gauche = le plus petit
+    return true;
+  } else { // longueur indentique on doit donc trouver qui est le plus grand entre les deux
+    short equal = strncmp(v1.bigValue+v1.index(),this->bigValue+this->index(),MAX);
     if (equal > 0) {
         return false;
     } else if (equal < 0) {
@@ -223,31 +242,15 @@ bool Currency::operator<=(Currency& v1) {
     }
   }
   return false;
-} // good
-
-bool Currency::operator>=(Currency& v1) {
-  if(this->index() > v1.index()) { // si la longueur du chiffre de gauche est supérieure à a longueur du chiffre de droite, droite = le plus petit
-    return false;
-   } else if (v1.index() < this->index()) { // si la longueur du chiffre de gauche est inférieur à a longueur du chiffre de droite, gauche = le plus petit
-    return true;
-  } else { // longueur indentique on doit donc trouver qui est le plus grand entre les deux
-    short equal = strncmp(v1.bigValue+v1.index(),this->bigValue+this->index(),MAX);
-    if (equal > 0) {
-        return false;
-    } else {
-        return true;
-    }
-  }
-  return false;
-} // à vérifier, les retour et conditions sont fuasses
+} // todo : vérifier
 
 bool Currency::operator==(Currency& v1) {
-  if (v1._index == 1 && this->_index == 1 ) { // longueur indentique, on compare s'ils sont égaux
-    if (v1.bigValue[MAX-1] == '0' && this->bigValue[MAX-1] == '0') return true;
+  if (v1._index == 1 && this->_index == 1 ) { // longueur indentique
+    if (v1.bigValue[MAX-1] == '0' && this->bigValue[MAX-1] == '0') return true; // le seul cas qui nous interesse et de savoir s'ils sont égale à 0
     return false;
-  } else return false;
+  }
   return false;
-} // n'est pas un vrai == on ne cherche qu'à savoir si c'est égal à 0
+} // n'est pas un vrai == on ne cherche qu'à savoir si c'est égal à 0 ou non
 
 Currency Currency::operator+(Currency& v1) {
   Currency a(this->get());
@@ -273,9 +276,9 @@ Currency Currency::operator%(Currency& v1) {
   return a;
 } // good but not perfect
 
-Currency& operator++(Currency& v1, int v2) {
-  v1.add("1");
-  return v1;
+Currency Currency::operator++(int v1) {
+  this->add("1");
+  return *this;
 } // good
 
 //---------------------------------------------------------
@@ -302,7 +305,6 @@ int main() {
     if(isPrime) prime.set(i.get());
     i++;
   }
-  
   prime.show();
   
   #if DEBUG
