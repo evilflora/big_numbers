@@ -82,7 +82,7 @@ void Currency::add(const char* value) {
     offset = tmp / 10; // calcul de l'offset, = 1 si >= 10 et = 0 si < 10
     i++;  // on augmente l'index
   }
-  _index = ( i > _index ? i : _index);
+  _index = ( i > _index ? i : _index); // le nouvel index est celui qu'on vient d'atteindre dans la boucle
 }
 
 void Currency::subtract(const char* value) {
@@ -110,10 +110,11 @@ void Currency::subtract(const char* value) {
     i++; // on augmente l'index
   }
   for(i = MAX-_index; i < MAX; i++) { //fix du décalage de l'index avec la soustration, temporaire // todo
-   if (bigValue[i] != '0'){
-       _index = MAX - i;
-       break;
-   }
+    if (bigValue[i] != '0'){
+        _index = MAX - i;
+        return;
+    }
+    if(i == MAX - 1) _index = 1;
   }
 }
 
@@ -146,10 +147,11 @@ void Currency::multiply(const char* value) {
     if (i == max) stop = true;
   }
   for(i = MAX-_index; i < MAX; i++) { //fix du décalage de l'index avec la soustration, temporaire // todo
-   if (bigValue[i] != '0'){
-       _index = MAX - i;
-       break;
-   }
+    if (bigValue[i] != '0'){
+        _index = MAX - i;
+        return;
+    }
+    if(i == MAX - 1) _index = 1;
   }
 }
 
@@ -204,6 +206,8 @@ uint64_t Currency::index(){
 //---------------------------------------------------------
 
 bool Currency::operator<=(Currency& v1) {
+  // return true si gauche <= droite
+  // return false si gauche > droite
   if(this->_index > v1._index) { // si la longueur du chiffre de gauche est inférieure à a longueur du chiffre de droite, gauche = le plus petit
     return false;
    } else if (this->_index < v1._index) { // si la longueur du chiffre de gauche est supérieure à a longueur du chiffre de droite, droite = le plus petit
@@ -212,12 +216,14 @@ bool Currency::operator<=(Currency& v1) {
     short equal = strncmp(this->bigValue+this->index(),v1.bigValue+v1.index(),MAX);
     if (equal > 0) {
         return false;
+    } else if (equal < 0) {
+        return true;
     } else {
         return true;
     }
   }
   return false;
-}
+} // good
 
 bool Currency::operator>=(Currency& v1) {
   if(this->index() > v1.index()) { // si la longueur du chiffre de gauche est supérieure à a longueur du chiffre de droite, droite = le plus petit
@@ -233,16 +239,12 @@ bool Currency::operator>=(Currency& v1) {
     }
   }
   return false;
-}
+} // à vérifier, les retour et conditions sont fuasses
 
 bool Currency::operator==(Currency& v1) {
-  if (v1.index() == this->index() ) { // longueur indentique, on compare s'ils sont égaux
-    if (v1.bigValue[MAX] == '0' && this->bigValue[MAX] == '0') return true;
-    /*uint64_t i = 0; // inutile en faite, ce qu'on
-    for(i = v1.index(); i < MAX; i++) {
-      if (v1.bigValue[i] != this->bigValue[i]) return false;
-    }*/
-    return true;
+  if (v1._index == 1 && this->_index == 1 ) { // longueur indentique, on compare s'ils sont égaux
+    if (v1.bigValue[MAX-1] == '0' && this->bigValue[MAX-1] == '0') return true;
+    return false;
   } else return false;
   return false;
 } // n'est pas un vrai == on ne cherche qu'à savoir si c'est égal à 0
@@ -251,30 +253,30 @@ Currency Currency::operator+(Currency& v1) {
   Currency a(this->get());
   a.add(v1.get());
   return a;
-}
+} // good
 
 Currency Currency::operator*(Currency& v1) {
   Currency a(this->get());
   a.multiply(v1.get());
   return a;
-}
+} // good
 
 Currency Currency::operator-(Currency& v1) {
   Currency a(this->get());
   a.subtract(v1.get());
   return a;
-}
+} // yeah why not
 
 Currency Currency::operator%(Currency& v1) {
   Currency a(this->get());
   a.modulo(v1.get());
   return a;
-}
+} // good but not perfect
 
 Currency& operator++(Currency& v1, int v2) {
   v1.add("1");
   return v1;
-}
+} // good
 
 //---------------------------------------------------------
 
@@ -283,26 +285,25 @@ int main() {
   clock_t begin = clock();
   #endif
   
-  int k = MAX;
-  Currency i = "2";
+  uint64_t k = 10000;
+  Currency i = "2"; // ne peux pas être < 2 sinon boucle infinie
   Currency j = "0";
   Currency zero = "0";
-  Currency a = "400";
-  Currency b = "200";
+  Currency prime = "0";
   
-  printf("%s mod %s = %s == %d\n",a.get(),b.get(),(a%b).get(),(a%b)==zero);
+  while(k--) {
+    bool isPrime=true;
+    for(j="2"; j*j<=i; j++){
+      if(i%j==zero) {
+  	    isPrime=false;
+  	    break;
+      }
+    }
+    if(isPrime) prime.set(i.get());
+    i++;
+  }
   
-  //while(k--) {
-  //  i++;
-  //  bool isPrime=true;
-  //  for(j="2"; j*j<= i; j++){
-  //    if(i%j == zero) {
-  //	    isPrime=false;
-  //	    break;
-  //    }
-  //	  if(isPrime) i.show();
-  //  }
-  //}
+  prime.show();
   
   #if DEBUG
   clock_t end = clock();
