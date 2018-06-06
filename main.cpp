@@ -6,6 +6,10 @@
 // Optimization : https://bousk.developpez.com/cours/multi-thread-mutex/
 // Operators    : https://www.ibm.com/support/knowledgecenter/en/SSLTBW_2.3.0/com.ibm.zos.v2r3.cbclx01/cplr318.htm
 */
+
+// Tous les nombres paires ne sont pas des nombres premiers, les multiples de 5 aussi.
+// Tous les nombres premiers sont impair, mais tous les nombres impairs ne sont pas des nombres premier.
+
 #include <iostream>
 #include <string.h>
 
@@ -35,6 +39,7 @@ class Currency {
   void reset();
   void show();
   char* get();
+  bool isNotPrime();
   void set(const char*);
   void set(Currency);
   uint64_t index(); /* retourne l'index du premier chiffre != 0 en partant de la gauche */
@@ -186,6 +191,10 @@ char* Currency::get(){
   return bigValue+index();
 }
 
+bool Currency::isNotPrime(){
+  return (bigValue[MAX-1] == '0' || bigValue[MAX-1] == '2' || bigValue[MAX-1] == '4' || bigValue[MAX-1] == '5' || bigValue[MAX-1] == '6' || bigValue[MAX-1] == '8');
+}
+
 void Currency::set(const char* value) {
   reset(); // init du tableau à '0'
   _index = strlen(value); // longueur de la valeur à copier
@@ -250,7 +259,7 @@ bool Currency::operator==(Currency& v1) {
     return false;
   }
   return false;
-} // n'est pas un vrai == on ne cherche qu'à savoir si c'est égal à 0 ou non
+} // n'est pas un vrai == on ne cherche qu'à savoir si c'est égal à 0 ou non et on exclu des cas connus de nombres non premiers
 
 Currency Currency::operator+(Currency& v1) {
   Currency a(this->get());
@@ -288,21 +297,26 @@ int main() {
   clock_t begin = clock();
   #endif
   
-  uint64_t k = 10000;
+  uint64_t k = 1500; // le X ème nombre premier que l'on cherche (ra)
   Currency i = "2"; // ne peux pas être < 2 sinon boucle infinie
   Currency j = "0";
   Currency zero = "0";
   Currency prime = "0";
   
-  while(k--) {
+  while(k > 1) {
     bool isPrime=true;
-    for(j="2"; j*j<=i; j++){
-      if(i%j==zero) {
-  	    isPrime=false;
-  	    break;
+    if(!i.isNotPrime()) { //vérifie si le nombre que l'on veux modulo est un nombre non prime (dont la fin du chiffre ne se termine pas par 0 2 4 5 6 8)
+      for(j="2"; j*j<=i; j++){
+        if(i%j==zero) {
+            isPrime=false;
+            break;
+        }
+      }
+      if(isPrime) {
+        k--;
+        prime.set(i.get());
       }
     }
-    if(isPrime) prime.set(i.get());
     i++;
   }
   prime.show();
