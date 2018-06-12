@@ -4,16 +4,16 @@
 // Optimization : https://www-s.acm.illinois.edu/webmonkeys/book/c_guide/index.html
 // Optimization : http://www.agner.org/optimize/optimizing_cpp.pdf
 // Optimization : https://bousk.developpez.com/cours/multi-thread-mutex/
+// WTFH         : https://fr.wikipedia.org/wiki/M%C3%A9taprogrammation_avec_des_patrons 
 // Operators    : https://www.ibm.com/support/knowledgecenter/en/SSLTBW_2.3.0/com.ibm.zos.v2r3.cbclx01/cplr318.htm
 */
 
-// Tous les nombres paires ne sont pas des nombres premiers, les multiples de 5 aussi.
 // Tous les nombres premiers sont impair, mais tous les nombres impairs ne sont pas des nombres premier.
 
 #include <iostream>
 #include <string.h>
 
-#define MAX 100
+#define MAX 10
 #define DEBUG 1
 
 #if DEBUG
@@ -45,9 +45,18 @@ class Currency {
   uint64_t index(); /* retourne l'index du premier chiffre != 0 en partant de la gauche */
   // operators
   Currency  operator++(int);
+  Currency  operator+=(Currency&);
   Currency  operator+ (Currency&);
+  Currency  operator+=(const char*);
+  Currency  operator+ (const char*);
+  Currency  operator*=(Currency&);
   Currency  operator* (Currency&);
+  Currency  operator*=(const char*);
+  Currency  operator* (const char*);
+  Currency  operator-=(Currency&);
   Currency  operator- (Currency&);
+  Currency  operator-=(const char*);
+  Currency  operator- (const char*);
   Currency  operator% (Currency&);
   bool      operator<=(Currency&);
   bool      operator>=(Currency&);
@@ -136,12 +145,12 @@ void Currency::multiply(const char* value) {
     memset(local,'0',sizeof(local)-1); // case de fin du tableau à '\0' le reste à '0'
     j = 0; // init de j
     while(j != max_bigvalue) {
-      tmp = ((local_value[MAX-j-1] - '0') * (value[max-i-1] - '0')) + offset; // on multiplie chaque case sans oublier l'ajout de l'offset
+      tmp = ((*(local_value+MAX-j-1) - '0') * (*(value+max-i-1) - '0')) + offset; // on multiplie chaque case sans oublier l'ajout de l'offset
       offset = tmp / 10; // on calcul l'offset entre 0 au min et 9 au max
-      local[max+max_bigvalue-j-i-1] = (tmp % 10) +'0'; // on met à jour la valeur
+      *(local+max+max_bigvalue-j-i-1) = (tmp % 10) +'0'; // on met à jour la valeur
       j++; // case suivante
       if (offset && j == max_bigvalue) { // si on a parcouru le multiplicateur (donc on a fini la multiplication) et qu'il reste un offset
-        local[max+max_bigvalue-j-i-1] = offset +'0'; // on le place a la bonne case (rien à faire, le j++ est déjà fait avant)
+        *(local+max+max_bigvalue-j-i-1) = offset +'0'; // on le place a la bonne case (rien à faire, le j++ est déjà fait avant)
         offset = 0; // on réinitialise l'offset à cause du calcul de tmp, car on ne repasse plus dans cette boucle
       }
     }
@@ -150,7 +159,7 @@ void Currency::multiply(const char* value) {
     if (i == max) stop = true;
   }
   for(i = MAX-_index; i < MAX; i++) { //fix du décalage de l'index avec la soustration, temporaire // todo
-    if (bigValue[i] != '0'){
+    if (*(bigValue+i) != '0'){
         _index = MAX - i;
         return;
     }
@@ -184,7 +193,7 @@ void Currency::show() {
 
 void Currency::reset() {
   memset(bigValue,'0',MAX);
-  _index = 0;
+  _index = 1;
 }
 
 char* Currency::get(){
@@ -192,7 +201,7 @@ char* Currency::get(){
 }
 
 bool Currency::isNotPrime(){
-  return (bigValue[MAX-1] == '0' || bigValue[MAX-1] == '2' || bigValue[MAX-1] == '4' || bigValue[MAX-1] == '5' || bigValue[MAX-1] == '6' || bigValue[MAX-1] == '8');
+  return (*(bigValue+MAX-1) == '0' || *(bigValue+MAX-1) == '2' || *(bigValue+MAX-1) == '4' || *(bigValue+MAX-1) == '5' || *(bigValue+MAX-1) == '6' || *(bigValue+MAX-1) == '8');
 }
 
 void Currency::set(const char* value) {
@@ -203,14 +212,86 @@ void Currency::set(const char* value) {
 
 uint64_t Currency::index(){
   return MAX-_index;
-  /*uint64_t i = 0;
-  for(i = 0; i < MAX; i++) {
-    if (bigValue[i] != '0') return i;
-  }
-  return MAX-1;*/
 }
 
 //---------------------------------------------------------
+
+Currency Currency::operator++(int v1) {
+  this->add("1");
+  return *this;
+} // good
+
+Currency Currency::operator+=(Currency& v1) {
+  this->add(v1.get());
+  return *this;
+} // good
+
+Currency Currency::operator+(Currency& v1) {
+  Currency a(this->get());
+  a.add(v1.get());
+  return a;
+} // good
+
+Currency Currency::operator+=(const char* value) {
+  this->add(value);
+  return *this;
+} // good
+
+Currency Currency::operator+(const char* value) {
+  Currency a(this->get());
+  a.add(value);
+  return a;
+} // good
+
+Currency Currency::operator*=(Currency& v1) {
+  this->multiply(v1.get());
+  return *this;
+} // good
+
+Currency Currency::operator*(Currency& v1) {
+  Currency a(this->get());
+  a.multiply(v1.get());
+  return a;
+} // good
+
+Currency Currency::operator*=(const char* value) {
+  this->multiply(value);
+  return *this;
+} // good
+
+Currency Currency::operator*(const char* value) {
+  Currency a(this->get());
+  a.multiply(value);
+  return a;
+} // good
+
+Currency Currency::operator-=(Currency& v1) {
+  this->subtract(v1.get());
+  return *this;
+} // yeah why not
+
+Currency Currency::operator-(Currency& v1) {
+  Currency a(this->get());
+  a.subtract(v1.get());
+  return a;
+} // yeah why not
+
+Currency Currency::operator-=(const char* value) {
+  this->subtract(value);
+  return *this;
+} // yeah why not
+
+Currency Currency::operator-(const char* value) {
+  Currency a(this->get());
+  a.subtract(value);
+  return a;
+} // yeah why not
+
+Currency Currency::operator%(Currency& v1) {
+  Currency a(this->get());
+  a.modulo(v1.get());
+  return a;
+} // good but not perfect
 
 bool Currency::operator<=(Currency& v1) {
   // return true si gauche <= droite
@@ -259,36 +340,7 @@ bool Currency::operator==(Currency& v1) {
     return false;
   }
   return false;
-} // n'est pas un vrai == on ne cherche qu'à savoir si c'est égal à 0 ou non et on exclu des cas connus de nombres non premiers
-
-Currency Currency::operator+(Currency& v1) {
-  Currency a(this->get());
-  a.add(v1.get());
-  return a;
-} // good
-
-Currency Currency::operator*(Currency& v1) {
-  Currency a(this->get());
-  a.multiply(v1.get());
-  return a;
-} // good
-
-Currency Currency::operator-(Currency& v1) {
-  Currency a(this->get());
-  a.subtract(v1.get());
-  return a;
-} // yeah why not
-
-Currency Currency::operator%(Currency& v1) {
-  Currency a(this->get());
-  a.modulo(v1.get());
-  return a;
-} // good but not perfect
-
-Currency Currency::operator++(int v1) {
-  this->add("1");
-  return *this;
-} // good
+} // n'est pas un vrai == on ne cherche qu'à savoir si c'est égal à 0
 
 //---------------------------------------------------------
 
@@ -297,29 +349,30 @@ int main() {
   clock_t begin = clock();
   #endif
   
-  uint64_t k = 1500; // le X ème nombre premier que l'on cherche (ra)
-  Currency i = "2"; // ne peux pas être < 2 sinon boucle infinie
+  uint64_t k = 200; // le X ème nombre premier que l'on cherche (ra)
+  uint64_t it = 0; // d'ittérations 
+  Currency i = "42953"; // ne peux pas être < 2 sinon boucle infinie, peut être remplacé par un précédent nombre premier
   Currency j = "0";
   Currency zero = "0";
-  Currency prime = "0";
   
   while(k > 1) {
     bool isPrime=true;
-    if(!i.isNotPrime()) { //vérifie si le nombre que l'on veux modulo est un nombre non prime (dont la fin du chiffre ne se termine pas par 0 2 4 5 6 8)
-      for(j="2"; j*j<=i; j++){
-        if(i%j==zero) {
-            isPrime=false;
-            break;
-        }
+    for(j="3"; j*j<=i; j += "2"){
+      if(i%j==zero) {
+          isPrime=false;
+          break;
       }
-      if(isPrime) {
-        k--;
-        prime.set(i.get());
-      }
+      it++; // itérations
     }
-    i++;
+    if(isPrime) {
+      k--;
+    }
+    i += "2";
   }
-  prime.show();
+  
+  i = i - "2";
+  i.show();
+  printf("Itérations : %d\n",it);
   
   #if DEBUG
   clock_t end = clock();
