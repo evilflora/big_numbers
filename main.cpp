@@ -13,11 +13,10 @@
 #include <iostream>
 #include <string.h>
 
-#define MAX 10
+#define MAX 100
 #define DEBUG 1
 
 using namespace std;
-
 
 int fast_compare( const char *ptr0, const char *ptr1, int len ){
   int fast = len/sizeof(size_t) + 1;
@@ -56,18 +55,20 @@ int fast_compare( const char *ptr0, const char *ptr1, int len ){
 
 class Currency {
   protected :
-  char* bigValue = new char[MAX];
-  uint64_t _index;
+  char* bigValue = new char[MAX]; // notre gros chiffre
+  uint64_t _index; // longueur de notre chiffre et au passage la position à partir de la droite
   
   public :
   // constructors
   Currency();
+  ~Currency();
   Currency(const char*);
   // functions
   void add(const char*);
   void subtract(const char*);
   void multiply(const char*);
   void modulo(const char*);
+  void loffset(const int);
   void reset();
   void show();
   char* get();
@@ -76,6 +77,7 @@ class Currency {
   void set(Currency);
   uint64_t index(); /* retourne l'index du premier chiffre != 0 en partant de la gauche */
   // operators
+  Currency operator<<(int);
   Currency operator++(int);
   Currency operator+=(Currency&);
   Currency operator+ (Currency&);
@@ -100,6 +102,8 @@ class Currency {
 Currency::Currency() {
   reset();
 }
+
+Currency::~Currency() { /*0xDEAD*/ }
 
 Currency::Currency(const char* value) {
   set(value);
@@ -127,7 +131,7 @@ void Currency::add(const char* value) {
     i++;  // on augmente l'index
   }
   _index = ( i > _index ? i : _index); // le nouvel index est celui qu'on vient d'atteindre dans la boucle
-}
+} // not sure
 
 void Currency::subtract(const char* value) {
   uint64_t max = strlen(value);
@@ -160,7 +164,7 @@ void Currency::subtract(const char* value) {
     }
     if(i == MAX - 1) _index = 1;
   }
-}
+} // todo
 
 void Currency::multiply(const char* value) {
   uint64_t max = strlen(value);
@@ -197,19 +201,26 @@ void Currency::multiply(const char* value) {
     }
     if(i == MAX - 1) _index = 1;
   }
-}
+} // todo
 
-void Currency::modulo(const char* value) {
+void Currency::modulo(const char* value) { 
   bool sub = true;
-  uint64_t max = strlen(value);
-  
+  Currency minus = value; // value est la valeur du modulo, par exemple 50 % 20 ==> 20
+  uint64_t max = minus._index; // la longueur de la valeur, en reprenant la valeur precente ==> 2
+  uint64_t offset = _index-max; // l'offet pour le multiplicateur du modulo, si on a 43001 % 10 ==> 3, car 10 * (10^3) = 10000
+
   while(sub) {
-    if(max > _index) { // si la longueur du chiffre à soustraire est supérieure à a longueur du chiffre, chiffre = le plus petit
+    if(max > _index) { // si la longueur du modulo est supérieure à la longueur du chiffre, chiffre = le plus petit
       sub = false; // donc on ne soustrait rien
-    } else if (max < _index) { // si la longueur du chiffre à soustraire est inférieur à a longueur du chiffre, chiffre à soustraire = le plus petit
-      subtract(value); // donc on soustrait
+    } else if (max < _index) { // si la longueur du modulo est inférieur à la longueur du chiffre, modulo = le plus petit
+      minus = value; // voir début de la fonction
+      max = minus._index; // pareil
+      offset = _index-max; // pareil
+      if(*(bigValue+index()) - '0' < minus.bigValue[minus.index()] - '0') offset -= 1; // evite le cas ou 43001 % 50 ==> 43001 % 50000 et transforme 50000 en 5000;
+      minus.loffset(offset); //genère un nouveau minus par rappoort à l'offset, si 43000 % 10, avec 10 = modulo, alors on a 43001 % 10000, pour réduire le nb de modulo
+      subtract(minus.get()); // donc on soustrait
     } else { // longueur indentique on doit donc trouver qui est le plus grand entre les deux
-       short equal = strncmp(bigValue+index(),value,MAX);
+       short equal = fast_compare(bigValue+index(),value,MAX);
        if (equal >= 0) {
            subtract(value);
        } else {
@@ -217,36 +228,48 @@ void Currency::modulo(const char* value) {
        }
     }
   }
-}
+} // todo à améliorer, fuite mémoire ici !!!!!!!!!!!!!!!!!
+
+void Currency::loffset(const int value) { 
+  memcpy(bigValue+index()-value, bigValue+index(), _index);
+  memset(bigValue+index(),'0',value);
+  _index += value;
+} // good
 
 void Currency::show() {
   printf("Current %.*s\n",MAX-index(),bigValue+index());
-}
+} // good
 
 void Currency::reset() {
   memset(bigValue,'0',MAX);
   _index = 1;
-}
+} // good
 
 char* Currency::get(){
   return bigValue+index();
-}
+} // good
 
 bool Currency::isNotPrime(){
   return (*(bigValue+MAX-1) == '0' || *(bigValue+MAX-1) == '2' || *(bigValue+MAX-1) == '4' || *(bigValue+MAX-1) == '5' || *(bigValue+MAX-1) == '6' || *(bigValue+MAX-1) == '8');
-}
+} // good
 
 void Currency::set(const char* value) {
   reset(); // init du tableau à '0'
   _index = strlen(value); // longueur de la valeur à copier
   memcpy(bigValue+MAX-_index,value,_index); // copie de la valeur 
-}
+} // good
 
 uint64_t Currency::index(){
   return MAX-_index;
-}
+} // good
 
 //---------------------------------------------------------
+
+Currency Currency::operator<<(int v1) {
+  Currency a(this->get());
+  a.loffset(v1);
+  return a;
+} // good
 
 Currency Currency::operator++(int v1) {
   this->add("1");
@@ -333,15 +356,11 @@ bool Currency::operator<=(Currency& v1) {
    } else if (this->_index < v1._index) { // si la longueur du chiffre de gauche est supérieure à a longueur du chiffre de droite, droite = le plus petit
     return true;
   } else { // longueur indentique on doit donc trouver qui est le plus grand entre les deux
-    //short equal = strncmp(this->bigValue+this->index(),v1.bigValue+v1.index(),MAX);
     if (fast_compare(this->bigValue+this->index(),v1.bigValue+v1.index(),MAX) > 0) {
         return false;
     } else {
         return true;
     }
-    //else if (equal < 0) {
-    //    return true;
-    //} 
   }
   return false;
 } // good
@@ -381,7 +400,7 @@ int main() {
   clock_t begin = clock();
   #endif
   
-  uint64_t k = 200; // le X ème nombre premier que l'on cherche (ra)
+  uint64_t k = 10; // le X ème nombre premier que l'on cherche (ra)
   uint64_t it = 0; // d'ittérations 
   Currency i = "42953"; // ne peux pas être < 2 sinon boucle infinie, peut être remplacé par un précédent nombre premier
   Currency j = "0";
@@ -403,11 +422,12 @@ int main() {
   }
   
   i -= "2";
-  i.show();
-  printf("Itérations : %d\n",it);
   
   #if DEBUG
   clock_t end = clock();
+  
+  i.show();
+  printf("Itérations : %lld\n",it);
   printf("Duration = %f s\n",(double)(end - begin) / CLOCKS_PER_SEC);
   #endif
 }
