@@ -14,7 +14,9 @@
 #include <cstring>
 #include <ctime>
 
-#define MAX 100
+#define TAILLE 100
+#define MAX (TAILLE - 1)
+#define END (TAILLE + 1)
 #define DEBUG 1
 
 using namespace std;
@@ -32,8 +34,7 @@ int fast_compare(const char *ptr0, const char *ptr1, const int len) {
 
   while (current_block < fast) {
     if ((lptr0[current_block] ^ lptr1[current_block])) {
-      int pos;
-      for (pos = current_block * sizeof(size_t); pos < len; ++pos) {
+      for (int pos = current_block * sizeof(size_t); pos < len; ++pos) {
         if ((ptr0[pos] ^ ptr1[pos]) || (ptr0[pos] == 0) || (ptr1[pos] == 0)) {
           return  (int)((unsigned char)ptr0[pos] - (unsigned char)ptr1[pos]);
         }
@@ -57,7 +58,7 @@ int fast_compare(const char *ptr0, const char *ptr1, const int len) {
 class Currency {
 protected:
   uint64_t _index{}; // longueur de notre chiffre et au passage la position à partir de la droite
-  char* bigValue = new char[MAX]; // notre gros chiffre
+  char* bigValue = new char[END]; // notre gros chiffre
 
 public:
   // constructors
@@ -95,6 +96,7 @@ public:
   bool     operator<=(Currency&) const;
   bool     operator>=(Currency&) const;
   bool     operator==(Currency&) const;
+  bool     operator==(const char* value) const;
 };
 
 //---------------------------------------------------------
@@ -117,7 +119,7 @@ void Currency::add(const char* value) {
   uint8_t offset = 0;
   uint8_t b;
   while (offset || i != max) { // tant qu'il reste un offset ou que l'on n'a pas atteind la fin de l'addition
-    const uint8_t a = *(bigValue + MAX - i - 1) - '0';
+    const uint8_t a = *(bigValue + MAX - i) - '0';
     if (offset && i == max) { // si on a un offset mais qu'on a parcouru tout le chiffre à additionner ...
       max++; // on augmente la taille pour continuer à parcourir le chiffre de base, car il reste l'offset à additionner
       b = 0; // est à 0
@@ -126,7 +128,7 @@ void Currency::add(const char* value) {
       b = *(value + max - i - 1) - '0';
     }
     const uint8_t tmp = a + b + offset; // on aditionne les deux chiffres et l'offset
-    *(bigValue + MAX - i - 1) = (tmp % 10) + '0'; // avec une addition entre 2 chiffres si le chiffre est supérieur à 10 on ne regarde que reste
+    *(bigValue + MAX - i) = (tmp % 10) + '0'; // avec une addition entre 2 chiffres si le chiffre est supérieur à 10 on ne regarde que reste
     offset = tmp / 10; // calcul de l'offset, = 1 si >= 10 et = 0 si < 10
     i++;  // on augmente l'index
   }
@@ -139,7 +141,7 @@ void Currency::subtract(const char* value) {
   uint8_t offset = 0;
   uint8_t b;
   while (offset || i != max) { // s'il n'y a pas d'offset et qu'on a parcouru tour le nombre à soustraire alors on quitte
-    const uint8_t a = (*(bigValue + MAX - i - 1) - '0'); // a = chiffre i (par la droite)
+    const uint8_t a = (*(bigValue + MAX - i) - '0'); // a = chiffre i (par la droite)
     if (offset && i == max) { // si on à un offset mais qu'on a parcouru tout le chiffre à soustraire 
       max++; // on augmente la taille pour continuer à parcourir le chiffre de base, car il reste l'offset à soustraire
       b = 0; // on met b à 0 pour simplifier les calculs suivants
@@ -155,29 +157,30 @@ void Currency::subtract(const char* value) {
     else {
       offset = 0; // sinon 8 - 5 => 3 donc pas d'offset
     }
-    *(bigValue + MAX - i - 1) = tmp + '0'; // on modifie la valeur cet index
+    *(bigValue + MAX - i) = tmp + '0'; // on modifie la valeur cet index
     i++; // on augmente l'index
   }
-  for (i = MAX - _index; i < MAX; i++) { //fix du décalage de l'index avec la soustration, temporaire // todo
+  for (i = TAILLE - _index; i < TAILLE; i++) { //fix du décalage de l'index avec la soustration, temporaire // todo
     if (*(bigValue + i) != '0') {
-      _index = MAX - i;
+      _index = TAILLE - i;
       return;
     }
-    if (i == MAX - 1) _index = 1;
+    if (i == MAX) _index = 1;
   }
 } // todo
 
 void Currency::multiply(const char* value) {
   const uint64_t max_a = _index; // longueur du bigvalue, pour savoir le nombre de case à multiplier
   const uint64_t max_b = strlen(value);
-  char* a = new char[max_a]{ 0 };
-  char* b = new char[max_b]{ 0 };
+  char* a = new char[max_a + 1] { 0 };
+  char* b = new char[max_b + 1] { 0 };
   uint64_t i = 0;
   uint8_t offset = 0;
   bool stop = false;
-  memcpy(a, bigValue + MAX - _index, _index); // on stocke la valeur de base (car on ne doit pas la perdre)
+  memcpy(a, bigValue + TAILLE - _index, _index); // on stocke la valeur de base (car on ne doit pas la perdre)
   memcpy(b, value, max_b); // on stocke la valeur de base (car on ne doit pas la perdre)
   memset(bigValue, '0', MAX);
+  _index = 1;
   while (!stop) { // tant que stop est à false et défini le nombre d'additions à réaliser
     char* local = new char[max_a + max_b + 1]{ 0 }; // la valeur local est égale à longueur du multiplié + longueur du multiplicateur + 1 qui est '\0' à la fin
     memset(local, '0', max_a + max_b); // case de fin du tableau à '\0' le reste à '0'
@@ -197,12 +200,12 @@ void Currency::multiply(const char* value) {
     if (i == max_b) stop = true;
   }
   // todo verfier avec _index = (i > _index ? i : _index); // -1 car il y a le '\0'
-  for (i = MAX - _index; i < MAX; i++) { //fix du décalage de l'index avec la soustration, temporaire // todo
+  for (i = TAILLE - _index; i < TAILLE; i++) { //fix du décalage de l'index avec la soustration, temporaire // todo
     if (*(bigValue + i) != '0') {
-      _index = MAX - i;
+      _index = TAILLE - i;
       return;
     }
-    if (i == MAX - 1) _index = 1;
+    if (i == MAX) _index = 1;
   }
 }
 
@@ -220,14 +223,13 @@ void Currency::modulo(const char* value) {
       max = minus._index; // pareil
       uint64_t offset = _index - max; // l'offet pour le multiplicateur du modulo, si on a 43001 % 10 ==> 3, car 10 * (10^3) = 10000
       if (*(bigValue + index()) - '0' < minus.bigValue[minus.index()] - '0') offset--; // evite le cas ou 43001 % 50 ==> 43001 % 50000 et transforme 50000 en 5000;
-      else if (fast_compare(bigValue + index(), value, offset) <= 0) offset--;
+      else if (fast_compare(bigValue + index(), value, offset) <= 0) offset--; // evite le cas ou par exemple 23000%25000 boucle à l'infini, car la comparaison au dessus ne vérifie que le premier chiffre pour être plus rapide
       minus.loffset(offset); //genère un nouveau minus par rapport à l'offset, si 43000 % 10, avec 10 = modulo, alors on a 43001 % 10000, pour réduire le nb de soustractions
       subtract(minus.get()); // donc on soustrait
-      
-      //printf("%llu < %llu | Minus %5s => %5s\n", max, _index, minus.get(), get());
+                   //printf("%llu < %llu | Minus %5s => %5s\n", max, _index, minus.get(), get());
     }
     else { // longueur indentique on doit donc trouver qui est le plus grand entre les deux
-      if (fast_compare(bigValue + index(), value, MAX) >= 0) {
+      if (fast_compare(bigValue + index(), value, TAILLE) >= 0) {
         subtract(value);
         //printf("%llu < %llu | Minus %5s => %5s\n", max, _index, value, get());
       }
@@ -236,11 +238,11 @@ void Currency::modulo(const char* value) {
       }
     }
   }
-} // todo à améliorer, peite fuite mémoire ici ???!!!
+} // todo fuite mémoire ici ???!!!
 
 void Currency::loffset(const int value) {
   memcpy(bigValue + index() - value, bigValue + index(), _index);
-  memset(bigValue + MAX - value, '0', value);
+  memset(bigValue + TAILLE - value, '0', value);
   _index += value;
 } // good
 
@@ -250,7 +252,7 @@ void Currency::show() const {
 
 void Currency::reset() {
   memset(bigValue, '0', MAX);
-  *(bigValue + MAX) = '\0';
+  *(bigValue + TAILLE) = '\0';
   _index = 1;
 } // good
 
@@ -259,17 +261,17 @@ char* Currency::get() const {
 } // good
 
 bool Currency::is_not_prime() const {
-  return (*(bigValue + MAX - 1) == '0' || *(bigValue + MAX - 1) == '2' || *(bigValue + MAX - 1) == '4' || *(bigValue + MAX - 1) == '5' || *(bigValue + MAX - 1) == '6' || *(bigValue + MAX - 1) == '8');
+  return (*(bigValue + MAX) == '0' || *(bigValue + MAX) == '2' || *(bigValue + MAX) == '4' || *(bigValue + MAX) == '5' || *(bigValue + MAX) == '6' || *(bigValue + MAX) == '8');
 } // good
 
 void Currency::set(const char* value) {
   reset(); // init du tableau à '0'
   _index = strlen(value); // longueur de la valeur à copier
-  memcpy(bigValue + MAX - _index, value, _index); // copie de la valeur 
+  memcpy(bigValue + TAILLE - _index, value, _index); // copie de la valeur 
 } // good
 
 uint64_t Currency::index() const {
-  return MAX - _index;
+  return TAILLE - _index;
 } // good
 
   //---------------------------------------------------------
@@ -366,7 +368,7 @@ Currency Currency::operator%(Currency& v1) const {
 bool Currency::operator<=(Currency& v1) const {
   if (this->_index > v1._index) return false; // si la longueur du chiffre de gauche est inférieure à a longueur du chiffre de droite, gauche = le plus petit
   if (this->_index < v1._index) return true; // si la longueur du chiffre de gauche est supérieure à a longueur du chiffre de droite, droite = le plus petit
-  return fast_compare(this->bigValue + this->index(), v1.bigValue + v1.index(), MAX) <= 0; // longueur indentique on doit donc trouver qui est le plus grand entre les deux
+  return fast_compare(this->bigValue + this->index(), v1.bigValue + v1.index(), TAILLE) <= 0; // longueur indentique on doit donc trouver qui est le plus grand entre les deux
 } // good
 
   /**
@@ -378,7 +380,7 @@ bool Currency::operator<=(Currency& v1) const {
 bool Currency::operator>=(Currency& v1) const {
   if (this->_index > v1._index) return true;// si la longueur du chiffre de gauche est supérieure à a longueur du chiffre de droite, droite = le plus petit
   if (v1._index < this->_index) return false; // si la longueur du chiffre de gauche est inférieur à a longueur du chiffre de droite, gauche = le plus petit
-  return fast_compare(this->bigValue + this->index(), v1.bigValue + v1.index(), MAX) >= 0;// longueur indentique on doit donc trouver qui est le plus grand entre les deux
+  return fast_compare(this->bigValue + this->index(), v1.bigValue + v1.index(), TAILLE) >= 0;// longueur indentique on doit donc trouver qui est le plus grand entre les deux
 } // good
 
   /**
@@ -388,7 +390,12 @@ bool Currency::operator>=(Currency& v1) const {
   * \return false si différent de 0
   */
 bool Currency::operator==(Currency& v1) const {
-  return (v1._index == 1 && this->_index == 1 && v1.bigValue[MAX - 1] == '0' && this->bigValue[MAX - 1] == '0');
+  return (v1._index == 1 && this->_index == 1 && v1.bigValue[TAILLE - 1] == '0' && this->bigValue[TAILLE - 1] == '0');
+} // good
+
+bool Currency::operator==(const char* value) const {
+  const short size = strlen(value);
+  return (size == 1 && this->_index == 1 && value[0] == '0' && this->bigValue[TAILLE - 1] == '0');
 } // good
 
   //---------------------------------------------------------
@@ -398,22 +405,22 @@ int main() {
   const clock_t begin = clock();
 #endif
 
-  uint64_t k = 1000; // le X ème nombre premier que l'on cherche (ra)  
+  uint64_t k = 100; // le X ème nombre premier que l'on cherche (ra)  
   uint64_t it = 0; // d'ittérations 
   Currency i = "48649"; // ne peux pas être < 2 sinon boucle infinie, peut être remplacé par un précédent nombre premier
-  Currency j = "0";
+  Currency j = "1";
   Currency zero = "0";
 
   while (k + 1) {
-    bool isPrime = true;
+    bool is_prime = true;
     for (j = "3"; j*j <= i; j += "2") {
-      if (i%j == zero) {
-        isPrime = false;
+      if (i%j == "0") {
+        is_prime = false;
         break;
       }
       it++; // itérations
     }
-    if (isPrime) {
+    if (is_prime) {
       k--;
     }
     i += "2";
@@ -427,5 +434,8 @@ int main() {
   i.show();
   printf("Iterations : %llu\n", it);
   printf("Duration = %f s\n", double(end - begin) / CLOCKS_PER_SEC);
+  #ifdef _WIN32
+  getchar();
+  #endif
 #endif
 }
