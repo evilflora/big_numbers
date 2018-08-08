@@ -58,7 +58,7 @@ int fast_compare(const char *ptr0, const char *ptr1, const int len) {
 class Currency {
 protected:
   uint64_t _index{}; // longueur de notre chiffre et au passage la position à partir de la droite
-  char* bigValue = new char[END]; // notre gros chiffre
+  char bigValue[END]; // notre gros chiffre
 
 public:
   // constructors
@@ -70,14 +70,14 @@ public:
   void subtract(const char*);
   void multiply(const char*);
   void modulo(const char*);
-  void loffset(const int);
+  void loffset(int);
   void reset();
   void show() const;
-  char* get() const;
+  const char* get() const;
   bool is_not_prime() const;
   void set(const char*);
   uint64_t index() const; /* retourne l'index du premier chiffre != 0 en partant de la gauche */
-              // operators
+  // operators
   Currency operator<<(int) const;
   Currency operator++(int);
   Currency operator+=(Currency&);
@@ -196,9 +196,12 @@ void Currency::multiply(const char* value) {
       }
     }
     add(local); // on réalise l'addition
+    delete[] local;
     i++; // on augmente l'index
     if (i == max_b) stop = true;
   }
+  delete[] a;
+  delete[] b;
   // todo verfier avec _index = (i > _index ? i : _index); // -1 car il y a le '\0'
   for (i = TAILLE - _index; i < TAILLE; i++) { //fix du décalage de l'index avec la soustration, temporaire // todo
     if (*(bigValue + i) != '0') {
@@ -256,7 +259,7 @@ void Currency::reset() {
   _index = 1;
 } // good
 
-char* Currency::get() const {
+const char* Currency::get() const {
   return bigValue + index();
 } // good
 
@@ -405,7 +408,7 @@ int main() {
   const clock_t begin = clock();
 #endif
 
-  uint64_t k = 100; // le X ème nombre premier que l'on cherche (ra)  
+  uint64_t k = 10000; // le X ème nombre premier que l'on cherche (ra)  
   uint64_t it = 0; // d'ittérations 
   Currency i = "48649"; // ne peux pas être < 2 sinon boucle infinie, peut être remplacé par un précédent nombre premier
   Currency j = "1";
